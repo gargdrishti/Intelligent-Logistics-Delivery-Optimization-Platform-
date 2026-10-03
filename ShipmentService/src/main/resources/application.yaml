@@ -1,0 +1,36 @@
+server:
+  port: ${SHIPMENT_SERVICE_PORT:8081}
+
+spring:
+  application:
+    name: ShipmentService
+
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+
+  jackson:
+    deserialization:
+      fail-on-null-for-primitives: false
+
+  cloud:
+    openfeign:
+      httpclient:
+        hc5:
+          enabled: true
+
+user-service:
+  url: ${USER_SERVICE_URL}
+
+app:
+  cors:
+    allowed-origins: ${FRONTEND_URL}

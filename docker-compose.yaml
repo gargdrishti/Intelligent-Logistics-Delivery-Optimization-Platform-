@@ -1,0 +1,76 @@
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: freightiq
+      MYSQL_USER: freightiq
+      MYSQL_PASSWORD: freightiq
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [freightiq-net]
+
+  user-service:
+    build: ./User_Service
+    ports: ["8080:8080"]
+    environment:
+      USER_SERVICE_PORT: 8080
+      DB_URL: jdbc:mysql://mysql:3306/freightiq?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      DB_USERNAME: freightiq
+      DB_PASSWORD: freightiq
+      FRONTEND_URL: http://localhost:5173
+    depends_on:
+      mysql: {condition: service_healthy}
+    networks: [freightiq-net]
+
+  shipment-service:
+    build: ./ShipmentService
+    ports: ["8081:8081"]
+    environment:
+      SHIPMENT_SERVICE_PORT: 8081
+      DB_URL: jdbc:mysql://mysql:3306/freightiq?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      DB_USERNAME: freightiq
+      DB_PASSWORD: freightiq
+      USER_SERVICE_URL: http://user-service:8080
+      FRONTEND_URL: http://localhost:5173
+    depends_on:
+      mysql: {condition: service_healthy}
+      user-service: {condition: service_started}
+    networks: [freightiq-net]
+
+  ml-service:
+    build: ./ML_Service
+    ports: ["8000:8000"]
+    environment:
+      USER_SERVICE_URL: http://user-service:8080
+      SHIPMENT_SERVICE_URL: http://shipment-service:8081
+    depends_on:
+      - user-service
+      - shipment-service
+    networks: [freightiq-net]
+
+  frontend:
+    build: ./freightIQ-frontend
+    ports: ["5173:80"]
+    environment:
+      VITE_USER_SERVICE_URL: http://localhost:8080
+      VITE_SHIPMENT_SERVICE_URL: http://localhost:8081
+      VITE_ML_SERVICE_URL: http://localhost:8000
+    depends_on:
+      - user-service
+      - shipment-service
+      - ml-service
+    networks: [freightiq-net]
+
+volumes:
+  mysql_data:
+networks:
+  freightiq-net:
+    driver: bridge
